@@ -138,7 +138,7 @@ echo ""
 echo "=== [6/7] Running Rails bootstrap phases ==="
 
 # Copy bootstrap scripts into the VM's app directory so they can run from there
-multipass transfer "$PROJECT_DIR/scripts/bootstrap" "$VM_NAME:$APP_DIR/"
+multipass exec "$VM_NAME" -- bash -c "mkdir -p $APP_DIR/bootstrap && cp -r $MOUNT_POINT/scripts/bootstrap/* $APP_DIR/bootstrap/"
 
 multipass exec "$VM_NAME" -- bash -c "
   set -euo pipefail
@@ -161,8 +161,6 @@ gem 'chartkick'
 gem 'groupdate'
 gem 'kaminari'
 gem 'view_component'
-gem 'solid_queue'
-gem 'tailwindcss-rails'
 
 group :development, :test do
   gem 'rspec-rails'
@@ -170,8 +168,6 @@ group :development, :test do
   gem 'faker'
   gem 'pry-rails'
   gem 'standard'
-  gem 'brakeman'
-  gem 'bundler-audit'
 end
 
 group :development do
@@ -195,11 +191,12 @@ GEMS
   echo '--- Bundle install ---'
   bundle install
 
-  # Phase: PaperTrail
+  # Phase: PaperTrail (runs first, no FK deps)
   echo '--- Installing PaperTrail ---'
   rails generate paper_trail:install --with-changes 2>/dev/null || true
+  rails db:migrate
 
-  # Phase: Generate models (use integer columns for non-standard FK names to avoid wrong table inference)
+  # Phase: Generate all business model tables (user ID columns are integer, no FKs to users yet)
   echo '--- Generating models ---'
   rails generate model WorkStation name:string code:string department:string station_type:integer description:text
   rails generate model Category name:string slug:string:uniq parent_id:integer
@@ -220,7 +217,7 @@ GEMS
   rails generate model InventoryTransaction part:references transaction_type:integer quantity:integer reference:references{polymorphic} user_id:integer notes:text
   rails generate model BillOfMaterial parent_part_id:integer component_part_id:integer quantity_per_assembly:decimal notes:text
 
-  # Phase: Fix self-referential FK migrations
+  # Fix self-referential FK migrations (parent_id columns referencing own table)
   echo '--- Fixing self-referential FK migrations ---'
   for f in db/migrate/*create_categories.rb; do
     sed -i 's/foreign_key: true/foreign_key: {to_table: :categories}/' "$f"
@@ -229,7 +226,6 @@ GEMS
     sed -i 's/foreign_key: true/foreign_key: {to_table: :stock_locations}/' "$f"
   done
   for f in db/migrate/*create_bill_of_materials.rb; do
-    # Replace the whole file — too complex for sed
     cat > "$f" << BOMFIX
 class CreateBillOfMaterials < ActiveRecord::Migration[8.1]
   def change
@@ -244,67 +240,38 @@ class CreateBillOfMaterials < ActiveRecord::Migration[8.1]
 end
 BOMFIX
   done
-
-  # Phase: Reorder migrations for FK dependency order
-  echo '--- Reordering migrations for FK order ---'
-  cd db/migrate
-  BASE=20260630231700
-  declare -A ORDER=(
-    ["create_work_stations"]="01"
-    ["create_categories"]="02"
-    ["create_stock_locations"]="03"
-    ["create_parts"]="04"
-    ["create_documents"]="05"
-    ["create_shifts"]="06"
-    ["create_work_orders"]="07"
-    ["create_weigh_stations"]="08"
-    ["create_daily_goals"]="09"
-    ["create_nfc_tags"]="10"
-    ["create_shipments"]="11"
-    ["create_notifications"]="12"
-    ["create_comments"]="13"
-    ["create_approvals"]="14"
-    ["create_assignments"]="15"
-    ["create_weigh_sessions"]="16"
-    ["create_inventory_transactions"]="17"
-    ["create_bill_of_materials"]="18"
-  )
-  for f in *.rb; do
-    for key in "${!ORDER[@]}"; do
-      if [[ "$f" == *"$key"* ]]; then
-        ts=$((BASE + 10#${ORDER[$key]}))
-        NEW="${ts}_${key}.rb"
-        [ "$f" != "$NEW" ] && mv "$f" "$NEW"
-        break
-      fi
-    done
-  done
-  # Ensure PaperTrail migrations are first
-  for f in *.rb; do
-    if [[ "$f" == *create_versions* ]] && [[ "$f" != 20260630231617_* ]]; then
-      mv "$f" "20260630231617_create_versions.rb"
-    fi
-    if [[ "$f" == *add_object_changes* ]] && [[ "$f" != 20260630231618_* ]]; then
-      mv "$f" "20260630231618_add_object_changes_to_versions.rb"
-    fi
-  done
-  cd - >/dev/null
-
-  # Phase: Run batch 1 — PaperTrail + independent + dep tables (no user FK needed yet)
-  echo '--- Running batch 1 migrations ---'
-  for v in 20260630231617 20260630231618 20260630231701 20260630231702 \
-           20260630231703 20260630231704 20260630231705 20260630231706 \
-           20260630231707 20260630231708 20260630231709 20260630231710 \
-           20260630231711 20260630231712 20260630231713 20260630231714 \
-           20260630231715 20260630231716 20260630231717 20260630231718; do
-    rails db:migrate:up VERSION=$v 2>/dev/null || true
-  done
+  # Migrate all business tables (timestamps are in gen order, all FKs reference existing tables)
+  echo '--- Running business table migrations ---'
+  rails db:migrate
 
   # Phase: Devise + user table
   echo '--- Setting up Devise ---'
+  rails generate devise:install
   rails generate devise User role:integer name:string department:string employee_id:string 2>/dev/null || true
 
-  # Phase: User FK migration + active column
+  # Overwrite User model with role enum
+  echo '--- Writing User model ---'
+  cat > app/models/user.rb << 'USERMODEL'
+class User < ApplicationRecord
+  devise :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :validatable
+
+  enum :role, { viewer: 0, operator: 1, author: 2, reviewer: 3, approver: 4, scheduler: 5, admin: 6 }
+  validates :name, :role, presence: true
+  scope :active, -> { where(active: true) }
+
+  def admin?       = role == 'admin'
+  def scheduler?   = role == 'scheduler'
+  def approver?    = role == 'approver'
+  def reviewer?    = role == 'reviewer'
+  def author?      = role == 'author'
+  def operator?    = role == 'operator'
+  def viewer?      = role == 'viewer'
+end
+USERMODEL
+  rails db:migrate
+
+  # Phase: User FK constraints + active column
   echo '--- Adding user FK constraints ---'
   rails generate migration AddUserForeignKeys
   cat > db/migrate/*add_user_foreign_keys.rb << FKMIG
@@ -334,12 +301,7 @@ class AddUserForeignKeys < ActiveRecord::Migration[8.1]
   end
 end
 FKMIG
-  # Move FK migration after Devise migration
-  mv db/migrate/*add_user_foreign_keys.rb db/migrate/20260630232200_add_user_foreign_keys.rb
   rails generate migration AddActiveToUsers active:boolean 2>/dev/null || true
-
-  # Run remaining migrations (Devise users + user FKs + active)
-  echo '--- Running batch 2 migrations ---'
   rails db:migrate
 
   echo '--- Setting up Pundit ---'
@@ -368,27 +330,6 @@ class ApplicationPolicy
   end
 end
 POLICY
-
-  # Phase: User model with role enum
-  echo '--- Writing User model ---'
-  cat > app/models/user.rb << 'USERMODEL'
-class User < ApplicationRecord
-  devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable
-
-  enum :role, { viewer: 0, operator: 1, author: 2, reviewer: 3, approver: 4, scheduler: 5, admin: 6 }
-  validates :name, :role, presence: true
-  scope :active, -> { where(active: true) }
-
-  def admin?       = role == 'admin'
-  def scheduler?   = role == 'scheduler'
-  def approver?    = role == 'approver'
-  def reviewer?    = role == 'reviewer'
-  def author?      = role == 'author'
-  def operator?    = role == 'operator'
-  def viewer?      = role == 'viewer'
-end
-USERMODEL
 
   # Phase: ApplicationController with Pundit
   echo '--- Writing ApplicationController ---'
@@ -520,7 +461,7 @@ echo "  Your Rails app is ready!"
 echo "================================================================"
 echo ""
 echo "  Starting server..."
-multipass exec "$VM_NAME" -- bash -c "source \$HOME/.asdf/asdf.sh && cd \$HOME/$APP_NAME && (bin/rails server -b 0.0.0.0 -p 3000 &>/tmp/rails.log &)" 2>/dev/null
+multipass exec "$VM_NAME" -- bash -c "source \$HOME/.asdf/asdf.sh && cd \$HOME/$APP_NAME && nohup bin/rails server -b 0.0.0.0 -p 3000 &>/tmp/rails.log & disown" 2>/dev/null
 sleep 3
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$VM_IP:3000/" 2>/dev/null || echo "failed")
 if [ "$HTTP_CODE" = "200" ]; then

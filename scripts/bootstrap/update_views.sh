@@ -3,6 +3,24 @@ set -euo pipefail
 source "$HOME/.asdf/asdf.sh"
 cd /home/ubuntu/shopfloor
 
+# HomeController (must exist before views reference it)
+cat > app/controllers/home_controller.rb << 'HOME'
+class HomeController < ApplicationController
+  skip_before_action :authenticate_user!, only: [:index]
+
+  def index
+    if user_signed_in?
+      render :dashboard
+    else
+      render :landing
+    end
+  end
+
+  def dashboard
+  end
+end
+HOME
+
 # DaisyUI CSS entry point
 cat > app/assets/tailwind/application.css << 'CSS'
 @import "tailwindcss";
