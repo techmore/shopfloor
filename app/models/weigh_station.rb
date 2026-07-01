@@ -1,0 +1,2 @@
+class WeighStation < ApplicationRecord
+end

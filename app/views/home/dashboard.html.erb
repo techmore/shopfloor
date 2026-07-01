@@ -1,0 +1,28 @@
+<div class="space-y-8">
+  <div>
+    <h1 class="text-2xl font-bold">Dashboard</h1>
+    <p class="text-base-content/70 mt-1">Welcome back, <span class="font-medium"><%= current_user.name %></span>.</p>
+  </div>
+  <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
+    <div class="stat">
+      <div class="stat-title">Today&rsquo;s Schedule</div>
+      <div class="stat-value text-primary">&mdash;</div>
+      <div class="stat-desc">No shifts today</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Daily Goals</div>
+      <div class="stat-value text-success">0%</div>
+      <div class="stat-desc">0 of 0 units</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Pending Reviews</div>
+      <div class="stat-value text-warning">0</div>
+      <div class="stat-desc">No pending items</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Active Assignments</div>
+      <div class="stat-value text-error">0</div>
+      <div class="stat-desc">No active work</div>
+    </div>
+  </div>
+</div>
