@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deployment Guide — Mac Dev + Rocky Linux Deploy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-300 font-sans antialiased">
+
+  <header class="border-b border-slate-700 bg-slate-800/50">
+    <div class="max-w-6xl mx-auto px-6 py-8">
+      <p class="text-indigo-400 text-sm font-semibold tracking-widest uppercase">Ops Guide</p>
+      <h1 class="text-4xl font-bold text-white mt-1">Build &amp; Deploy</h1>
+      <p class="text-slate-400 mt-2 text-lg">Multipass (dev) → Capistrano → Incus/LXD on Rocky Linux (production)</p>
+      <p class="text-slate-500 text-sm mt-1">No Docker. Native Ruby + Postgres + Redis throughout.</p>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-12 space-y-16">
+
+    <!-- ===================== OVERVIEW ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">01</span> Architecture
+      </h2>
+      <div class="mt-6 bg-slate-800/70 rounded-xl border border-slate-700 p-6 font-mono text-sm leading-relaxed">
+        <div class="text-slate-500">┌─────────────────────────────────────────────────────┐</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">│  <span class="text-indigo-300">Apple Silicon Mac — Dev</span></div>
+        <div class="text-slate-500">│  └── Multipass (Ubuntu 24.04 VM)</div>
+        <div class="text-slate-500">│      ├── Ruby 3.4.1 + Rails (via asdf)</div>
+        <div class="text-slate-500">│      ├── PostgreSQL 16</div>
+        <div class="text-slate-500">│      ├── Redis 7</div>
+        <div class="text-slate-500">│      └── foreman → Puma + Solid Queue + Tailwind</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">│  <span class="text-indigo-300">Production: Rocky Linux</span></div>
+        <div class="text-slate-500">│  └── Incus / LXD system containers</div>
+        <div class="text-slate-500">│      ├── <span class="text-green-400">app</span>       Ruby 3.4.1 + Rails + Puma</div>
+        <div class="text-slate-500">│      ├── <span class="text-green-400">worker</span>    Solid Queue worker</div>
+        <div class="text-slate-500">│      ├── <span class="text-green-400">postgres</span>  PostgreSQL 16</div>
+        <div class="text-slate-500">│      └── <span class="text-green-400">redis</span>     Redis 7</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">│  <span class="text-indigo-300">Deploy: Capistrano</span></div>
+        <div class="text-slate-500">│  └── git push → cap production deploy</div>
+        <div class="text-slate-500">│      ├── SSH into Incus app container</div>
+        <div class="text-slate-500">│      ├── git pull + bundle install</div>
+        <div class="text-slate-500">│      ├── assets:precompile + db:migrate</div>
+        <div class="text-slate-500">│      └── systemd restart puma + solid_queue</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">└─────────────────────────────────────────────────────┘</div>
+      </div>
+    </section>
+
+    <!-- ===================== PREREQS ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">02</span> Mac Prerequisites
+      </h2>
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 text-sm space-y-4">
+
+        <div>
+          <h3 class="text-white font-semibold">Install Multipass</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">brew install --cask multipass
+# or download from https://multipass.run</pre>
+        </div>
+
+        <div>
+          <h3 class="text-white font-semibold">Launch VM</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">multipass launch 24.04 \
+  --name shopfloor-dev \
+  --cpus 4 \
+  --memory 8G \
+  --disk 50G
+
+multipass shell shopfloor-dev</pre>
+        </div>
+
+        <div>
+          <h3 class="text-white font-semibold">Mount project</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># On Mac, not inside VM:
+multipass mount /path/to/your/project shopfloor-dev:/home/ubuntu/app</pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== VM BOOTSTRAP ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">03</span> VM Bootstrap
+      </h2>
+
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <pre class="bg-slate-900 rounded-lg p-4 text-sm font-mono text-green-400 overflow-x-auto leading-relaxed">#!/bin/bash
+# scripts/vm-bootstrap.sh — run once inside the Multipass VM
+set -euo pipefail
+
+echo "=== Packages ==="
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y \
+  curl git build-essential libssl-dev libreadline-dev \
+  zlib1g-dev libyaml-dev libxml2-dev libxslt1-dev \
+  libpq-dev postgresql postgresql-contrib redis-server \
+  imagemagick libsqlite3-dev nginx
+
+echo "=== asdf (Ruby + Node version manager) ==="
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf
+echo '. "$HOME/.asdf/asdf.sh"' >> ~/.bashrc
+echo '. "$HOME/.asdf/completions/asdf.bash"' >> ~/.bashrc
+source ~/.bashrc
+
+echo "=== Ruby 3.4.1 ==="
+asdf plugin add ruby
+asdf install ruby 3.4.1
+asdf global ruby 3.4.1
+
+echo "=== Node.js 22 ==="
+asdf plugin add nodejs
+asdf install nodejs 22.14.0
+asdf global nodejs 22.14.0
+
+echo "=== Rails + Capistrano ==="
+gem install rails bundler
+gem install capistrano capistrano-rails capistrano-bundler capistrano-rvm
+
+echo "=== Postgres dev user ==="
+sudo -u postgres createuser -s ubuntu 2>/dev/null || true
+
+echo "=== Done ==="
+echo "Log out and back in: exit → multipass shell shopfloor-dev"
+echo "Then: cd ~/app && bundle install && rails db:create db:migrate"</pre>
+      </div>
+    </section>
+
+    <!-- ===================== DAILY DEV ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">04</span> Daily Dev Workflow
+      </h2>
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-white font-semibold">Start work</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">multipass start shopfloor-dev
+multipass shell shopfloor-dev
+cd ~/app
+foreman start</pre>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-white font-semibold">Stop work</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># Ctrl-C to stop foreman
+exit
+multipass stop shopfloor-dev</pre>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-white font-semibold">Find VM IP (browser)</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">multipass info shopfloor-dev | grep IPv4
+# → http://&lt;ip&gt;:3000</pre>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-white font-semibold">Run tests</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">cd ~/app
+RAILS_ENV=test rails db:setup
+rspec</pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== CAPISTRANO ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">05</span> Capistrano Setup
+      </h2>
+
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 text-sm space-y-4">
+
+        <div>
+          <h3 class="text-white font-semibold">Gemfile</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">group :development do
+  gem "capistrano", "~> 3.19"
+  gem "capistrano-rails", "~> 1.7"
+  gem "capistrano-bundler", "~> 2.1"
+  gem "capistrano-rvm"
+end</pre>
+        </div>
+
+        <div>
+          <h3 class="text-white font-semibold">Capfile</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># Capfile
+require "capistrano/setup"
+require "capistrano/deploy"
+require "capistrano/rails"
+require "capistrano/bundler"
+require "capistrano/rvm"
+
+install_plugin Capistrano::Puma
+install_plugin Capistrano::SolidQueue
+
+Dir.glob("lib/capistrano/tasks/*.rake").each { |r| import r }</pre>
+        </div>
+
+        <div>
+          <h3 class="text-white font-semibold">config/deploy.rb</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># config/deploy.rb
+lock "~> 3.19"
+
+set :application, "shopfloor"
+set :repo_url, "git@github.com:your-org/shopfloor.git"
+set :branch, "main"
+
+set :deploy_to, "/home/deploy/shopfloor"
+set :keep_releases, 5
+
+set :rvm_ruby_version, "3.4.1"
+
+set :linked_files, %w[config/master.key config/database.yml]
+set :linked_dirs, %w[log tmp/pids tmp/cache tmp/sockets storage public/uploads]
+
+set :puma_service_unit_name, "puma"
+set :puma_systemctl_user, :system
+
+namespace :deploy do
+  after :finishing, "puma:restart"
+  after :finishing, "solid_queue:restart"
+end</pre>
+        </div>
+
+        <div>
+          <h3 class="text-white font-semibold">config/deploy/production.rb</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># config/deploy/production.rb
+server "10.0.0.50", user: "deploy", roles: %w[app web db]
+
+set :branch, "main"
+set :rails_env, "production"</pre>
+        </div>
+
+        <div class="bg-slate-800/60 rounded-xl border border-slate-700 p-4">
+          <h4 class="text-white font-semibold text-xs">Deploy commands</h4>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># First deploy (provision directories)
+cap production deploy:check
+
+# Deploy
+cap production deploy
+
+# Rollback
+cap production deploy:rollback
+
+# Run Rails console remotely
+cap production rails:console</pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== PRODUCTION HOST ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">06</span> Production Host Setup
+      </h2>
+
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 text-sm space-y-4">
+
+        <div>
+          <h3 class="text-white font-semibold">Rocky Linux — System Containers</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># Install Incus (community fork of LXD)
+sudo dnf install -y epel-release
+sudo dnf install -y incus incus-client
+sudo systemctl enable --now incus
+sudo usermod -aG incus $USER
+
+# Or LXD via snap:
+# sudo dnf install -y snapd
+# sudo snap install lxd</pre>
+        </div>
+
+        <div>
+          <h3 class="text-white font-semibold">scripts/provision-incus-containers.sh</h3>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto">#!/bin/bash
+# Run on the Rocky Linux host to create production system containers
+set -euo pipefail
+
+INCUS="incus"   # or "lxc" if using LXD
+
+echo "=== Launching Postgres container ==="
+$INCUS launch images:rockylinux/9/cloud postgres
+$INCUS exec postgres -- dnf install -y postgresql-server
+$INCUS exec postgres -- postgresql-setup --initdb
+$INCUS exec postgres -- systemctl enable --now postgresql
+$INCUS config device add postgres data disk source=/data/postgres path=/var/lib/pgsql/data
+
+echo "=== Launching Redis container ==="
+$INCUS launch images:rockylinux/9/cloud redis
+$INCUS exec redis -- dnf install -y redis
+$INCUS exec redis -- systemctl enable --now redis
+
+echo "=== Launching App container ==="
+$INCUS launch images:rockylinux/9/cloud app
+$INCUS config device add app postgres disk source=postgres path=/dev  # shared network
+
+# Inside the app container:
+$INCUS exec app -- dnf install -y \
+  git curl gcc make libssl-devel libreadline-devel \
+  zlib-devel libyaml-devel libxml2-devel libxslt-devel \
+  postgresql-devel postgresql redis imagemagick sqlite-devel
+
+# Create deploy user
+$INCUS exec app -- useradd -m -s /bin/bash deploy
+$INCUS exec app -- mkdir -p /home/deploy/shopfloor
+$INCUS exec app -- chown deploy:deploy /home/deploy/shopfloor
+
+echo "=== Apply firewall rules ==="
+firewall-cmd --permanent --add-port=443/tcp --add-port=80/tcp
+firewall-cmd --reload
+
+echo "=== Done ==="</pre>
+        </div>
+
+        <div class="bg-slate-800/60 rounded-xl border border-slate-700 p-4">
+          <h4 class="text-white font-semibold text-xs">Systemd services inside the app container</h4>
+          <pre class="bg-slate-900 rounded-lg p-4 mt-2 text-sm font-mono text-green-400 overflow-x-auto"># /etc/systemd/system/puma.service
+[Unit]
+Description=Puma Rails Server
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/home/deploy/shopfloor/current
+ExecStart=/home/deploy/.asdf/shims/bundle exec puma -C config/puma.rb
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+
+[Install]
+WantedBy=multi-user.target</pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== WEIGH STATION ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">07</span> Weigh Station (Ubuntu Box)
+      </h2>
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 text-sm space-y-4">
+
+        <p class="text-slate-400">Each weigh station runs Ubuntu with a browser pointing at the Rails app. The scale (RS-232/USB HID), USB camera, Zebra printer, and NFC reader connect locally.</p>
+
+        <div>
+          <pre class="bg-slate-900 rounded-lg p-4 text-sm font-mono text-green-400 overflow-x-auto">#!/bin/bash
+# scripts/setup-weigh-station.sh — run on each Ubuntu station box
+set -euo pipefail
+
+echo "=== Printer drivers ==="
+sudo apt install -y cups printer-driver-zebra
+sudo systemctl enable --now cups
+
+echo "=== USB scale permissions ==="
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="*", ATTRS{idProduct}=="*", MODE="0666"' \
+  | sudo tee /etc/udev/rules.d/99-scale.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+echo "=== Configure printer ==="
+echo "Open http://localhost:631 (CUPS) to add Zebra printer"
+echo "Or find USB URI with: lpinfo -v | grep usb"
+echo "Then: sudo lpadmin -p Zebra -E -v usb://... -m drv:///..."</pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== CI ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">08</span> CI Pipeline
+      </h2>
+
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 text-sm">
+        <pre class="bg-slate-900 rounded-lg p-4 text-sm font-mono text-green-400 overflow-x-auto leading-relaxed"># .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: bundle exec standardrb
+      - run: bundle exec brakeman --no-pager
+      - run: bundle exec bundler-audit check --update
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: runner
+          POSTGRES_DB: shopfloor_test
+          POSTGRES_PASSWORD: ""
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: |
+          cp config/database.yml.ci config/database.yml
+          bundle exec rails db:create db:migrate
+          bundle exec rspec
+
+  deploy:
+    needs: [lint, test]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - name: Deploy via Capistrano
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          echo "$SSH_PRIVATE_KEY" | ssh-add -
+          bundle exec cap production deploy</pre>
+      </div>
+    </section>
+
+    <!-- ===================== SCRIPTS REF ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">09</span> Scripts Reference
+      </h2>
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 text-sm">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-700 text-slate-500 uppercase text-xs tracking-wider">
+              <th class="text-left py-2 pr-4">Script</th>
+              <th class="text-left py-2 pr-4">Runs On</th>
+              <th class="text-left py-2">Purpose</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            <tr><td class="py-2 pr-4 text-green-400 font-mono">vm-bootstrap.sh</td><td class="py-2 pr-4">Multipass VM</td><td class="py-2">Install Ruby, Node, Postgres, Redis, Capistrano</td></tr>
+            <tr><td class="py-2 pr-4 text-green-400 font-mono">provision-incus-containers.sh</td><td class="py-2 pr-4">Rocky Linux host</td><td class="py-2">Create app/postgres/redis Incus containers</td></tr>
+            <tr><td class="py-2 pr-4 text-green-400 font-mono">setup-weigh-station.sh</td><td class="py-2 pr-4">Ubuntu at station</td><td class="py-2">Scale USB perms, Zebra printer via CUPS</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== QUICK REF ===================== -->
+    <section class="border-t border-slate-800 pt-10 pb-8">
+      <h2 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">#</span> Quick Reference
+      </h2>
+      <div class="mt-4 bg-slate-800 rounded-xl border border-slate-700 p-6 font-mono text-sm text-slate-400">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2">
+          <div><span class="text-indigo-300">multipass start</span> shopfloor-dev</div>
+          <div class="text-slate-500">Start dev VM</div>
+
+          <div><span class="text-indigo-300">multipass shell</span> shopfloor-dev</div>
+          <div class="text-slate-500">SSH into VM</div>
+
+          <div><span class="text-indigo-300">foreman start</span></div>
+          <div class="text-slate-500">Run Rails + workers</div>
+
+          <div><span class="text-indigo-300">rspec</span></div>
+          <div class="text-slate-500">Run tests</div>
+
+          <div><span class="text-indigo-300">cap production deploy</span></div>
+          <div class="text-slate-500">Deploy to Rocky Linux</div>
+
+          <div><span class="text-indigo-300">cap production deploy:rollback</span></div>
+          <div class="text-slate-500">Rollback</div>
+
+          <div><span class="text-indigo-300">incus exec app bash</span></div>
+          <div class="text-slate-500">SSH into production container</div>
+
+          <div><span class="text-indigo-300">journalctl -u puma -f</span></div>
+          <div class="text-slate-500">Tail production Rails logs</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-600">
+    Deploy Guide &mdash; Shopfloor Operations Platform &mdash; v2 (no Docker)
+  </footer>
+
+</body>
+</html>

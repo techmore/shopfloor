@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manufacturing Operations Platform — Design Overview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-300 font-sans antialiased">
+
+  <header class="border-b border-slate-700 bg-slate-800/50">
+    <div class="max-w-6xl mx-auto px-6 py-8">
+      <p class="text-indigo-400 text-sm font-semibold tracking-widest uppercase">Design Document</p>
+      <h1 class="text-4xl font-bold text-white mt-1">Shopfloor Operations Platform</h1>
+      <p class="text-slate-400 mt-2 text-lg">Ruby on Rails — Unified ISO Compliance, Production Scheduling, Weigh Station &amp; Inventory for Manufacturing</p>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-12 space-y-16">
+
+    <!-- ===================== STACK ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">01</span> Technology Stack
+      </h2>
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-indigo-300 font-semibold">Backend</h3>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li><span class="text-white font-medium">Rails 8</span> — framework</li>
+            <li><span class="text-white font-medium">PostgreSQL</span> — database</li>
+            <li><span class="text-white font-medium">ActionText / Trix</span> — WYSIWYG editor</li>
+            <li><span class="text-white font-medium">Active Storage</span> — weigh station photos</li>
+            <li><span class="text-white font-medium">PaperTrail</span> — versioning &amp; audit log</li>
+            <li><span class="text-white font-medium">Devise</span> — authentication</li>
+            <li><span class="text-white font-medium">Pundit</span> — authorization (role-based)</li>
+            <li><span class="text-white font-medium">rqrcode</span> — QR code generation</li>
+            <li><span class="text-white font-medium">AASM</span> — state machines (docs, orders)</li>
+          </ul>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-indigo-300 font-semibold">Frontend</h3>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li><span class="text-white font-medium">Tailwind CSS</span> — utility-first styling</li>
+            <li><span class="text-white font-medium">Hotwire / Turbo</span> — SPA-like navigation</li>
+            <li><span class="text-white font-medium">Stimulus.js</span> — modest JS enhancements</li>
+            <li><span class="text-white font-medium">ViewComponent</span> — reusable UI components</li>
+            <li><span class="text-white font-medium">simple_calendar</span> — calendar views</li>
+            <li><span class="text-white font-medium">Chartkick</span> — production dashboards</li>
+          </ul>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-indigo-300 font-semibold">Build &amp; Deploy</h3>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li><span class="text-white font-medium">Multipass</span> — local dev VMs on Apple Silicon (Ubuntu)</li>
+            <li><span class="text-white font-medium">Incus / LXD</span> — system containers on production host</li>
+            <li><span class="text-white font-medium">Rocky Linux</span> — production host OS</li>
+            <li><span class="text-white font-medium">Docker</span> — app + worker images</li>
+            <li><span class="text-white font-medium">Kamal</span> — deploy orchestration</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== ROLES ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">02</span> Roles &amp; Permissions
+      </h2>
+      <div class="mt-6 overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-700 text-slate-500 uppercase text-xs tracking-wider">
+              <th class="text-left py-3 px-4">Action</th>
+              <th class="text-center py-3 px-4">Viewer</th>
+              <th class="text-center py-3 px-4">Operator</th>
+              <th class="text-center py-3 px-4">Author</th>
+              <th class="text-center py-3 px-4">Reviewer</th>
+              <th class="text-center py-3 px-4">Approver</th>
+              <th class="text-center py-3 px-4">Scheduler</th>
+              <th class="text-center py-3 px-4">Admin</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+<tr><td class="py-3 px-4 text-slate-300">View published docs</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Create / edit drafts</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Submit / review / approve docs</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-yellow-400">S</td><td class="text-center text-green-400">R</td><td class="text-center text-green-400">A</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">A</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">View schedule / calendar</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">View my assigned jobs</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Create / edit schedule</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Log weigh station session</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">View daily goals / progress</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Set daily goals</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">View warehouse map</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Scan NFC shipment tag</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">View inventory</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Adjust inventory</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td><td class="text-center text-green-400">&#10003;</td></tr>
+<tr><td class="py-3 px-4 text-slate-300">Manage users / roles</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-slate-600">—</td><td class="text-center text-green-400">&#10003;</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">S = Submit &nbsp; R = Review &nbsp; A = Approve</p>
+    </section>
+
+    <!-- ===================== MODULES OVERVIEW ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">03</span> Module Architecture
+      </h2>
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <div class="bg-indigo-900/20 border border-indigo-800/50 rounded-xl p-5">
+          <span class="text-indigo-400 text-sm font-semibold">A</span>
+          <h3 class="text-white text-lg font-bold mt-1">Docs &amp; Compliance</h3>
+          <p class="text-slate-400 text-sm mt-2">ISO document management with formal approval workflow, versioning, QR codes per published revision, category/standard grouping.</p>
+        </div>
+
+        <div class="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-5">
+          <span class="text-emerald-400 text-sm font-semibold">B</span>
+          <h3 class="text-white text-lg font-bold mt-1">Production Scheduling</h3>
+          <p class="text-slate-400 text-sm mt-2">Shift-based calendar, worker/job/station assignments, drag-and-drop rescheduling, daily goals (per-worker, per-station, plant-wide), progress tracking.</p>
+        </div>
+
+        <div class="bg-amber-900/20 border border-amber-800/50 rounded-xl p-5">
+          <span class="text-amber-400 text-sm font-semibold">C</span>
+          <h3 class="text-white text-lg font-bold mt-1">Inventory &amp; Warehouse</h3>
+          <p class="text-slate-400 text-sm mt-2">Part master data, stock-on-hand, transactions, BOM, 2D warehouse map view, location hierarchy browser, bin QR codes, low-stock alerts.</p>
+        </div>
+
+        <div class="bg-cyan-900/20 border border-cyan-800/50 rounded-xl p-5">
+          <span class="text-cyan-400 text-sm font-semibold">D</span>
+            <h3 class="text-white text-lg font-bold mt-1">Weigh Station &amp; Packing</h3>
+          <p class="text-slate-400 text-sm mt-2">Scale-integrated (RS-232/USB HID) weighing stations with USB camera, Zebra label printer, NFC tag scanning for boxing/shipment tracking, offline queue with auto-sync, all recorded per work order.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== DOC WORKFLOW ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">04</span> Document Lifecycle
+      </h2>
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6">
+
+        <div class="flex items-center justify-between flex-wrap gap-4 text-sm">
+          <div class="flex items-center gap-3">
+            <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
+            <span class="text-white font-medium">Draft</span>
+            <span class="text-slate-500">— Author writing</span>
+          </div>
+          <svg class="text-slate-600 w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          <div class="flex items-center gap-3">
+            <span class="w-3 h-3 rounded-full bg-blue-400 inline-block"></span>
+            <span class="text-white font-medium">In Review</span>
+            <span class="text-slate-500">— Reviewers comment</span>
+          </div>
+          <svg class="text-slate-600 w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          <div class="flex items-center gap-3">
+            <span class="w-3 h-3 rounded-full bg-green-400 inline-block"></span>
+            <span class="text-white font-medium">Approved</span>
+            <span class="text-slate-500">— Approver signs off</span>
+          </div>
+          <svg class="text-slate-600 w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          <div class="flex items-center gap-3">
+            <span class="w-3 h-3 rounded-full bg-indigo-400 inline-block"></span>
+            <span class="text-white font-medium">Published</span>
+            <span class="text-slate-500">— Frozen + QR issued</span>
+          </div>
+          <svg class="text-slate-600 w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          <div class="flex items-center gap-3">
+            <span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span>
+            <span class="text-white font-medium">Archived</span>
+            <span class="text-slate-500">— Superseded</span>
+          </div>
+        </div>
+
+        <div class="mt-6 border-t border-slate-700 pt-6">
+          <h4 class="text-white font-semibold text-sm">Rejection path</h4>
+          <p class="text-slate-400 text-sm mt-1">If a Reviewer or Approver rejects a document, it returns to <span class="text-yellow-400">Draft</span> with comments. Author revises and re-submits.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== SCHEDULING + GOALS ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">05</span> Production Scheduling &amp; Daily Goals
+      </h2>
+
+      <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-emerald-300 font-semibold">Data Model</h3>
+          <ul class="mt-3 text-sm space-y-3 text-slate-400">
+            <li>
+              <span class="text-white">Shift</span><br/>
+              name / date / start_time / end_time / station_id
+            </li>
+            <li>
+              <span class="text-white">WorkOrder</span><br/>
+              order_number / part_id / quantity / due_date / status<br/>
+              <span class="text-slate-500">status: queued → scheduled → in_progress → complete → verified</span>
+            </li>
+            <li>
+              <span class="text-white">Assignment</span><br/>
+              shift / work_order / worker (User) / station / start_time / end_time / actual_start / actual_end / notes
+            </li>
+            <li>
+              <span class="text-white">WorkStation</span><br/>
+              name / code / department / station_type (production | weigh | packing)
+            </li>
+            <li>
+              <span class="text-white">DailyGoal</span><br/>
+              date / station_id / worker_id (optional — nil = station-level) / target_quantity / unit / note
+            </li>
+          </ul>
+        </div>
+
+        <div class="space-y-4">
+          <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+            <h3 class="text-emerald-300 font-semibold">Calendar UX</h3>
+            <ul class="mt-3 text-sm space-y-2 text-slate-400">
+              <li>• Monthly / weekly / daily toggle via <span class="text-white">simple_calendar</span></li>
+              <li>• Colour-coded shift blocks on the calendar</li>
+              <li>• Drag-and-drop reschedule (Stimulus + SortableJS)</li>
+              <li>• Click a shift to see workers + work orders assigned</li>
+              <li>• Workers view <em>"My Schedule"</em> — personal shift/week view</li>
+              <li>• Gantt-style overview of work orders by station</li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+            <h3 class="text-emerald-300 font-semibold">Daily Goals &amp; Progress</h3>
+            <ul class="mt-3 text-sm space-y-2 text-slate-400">
+              <li>• Goals set per-station and optionally per-worker per shift</li>
+              <li>• Real-time progress bar on station screen: <span class="text-emerald-400">"34 / 100 units"</span></li>
+              <li>• Plant-wide rollup on the manager dashboard</li>
+              <li>• Auto-incremented as weigh station sessions complete</li>
+              <li>• Visual indicators: green (on track), yellow (behind), red (critical)</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-6 bg-slate-800/60 rounded-xl border border-slate-700 p-6">
+        <h4 class="text-white font-semibold text-sm">QR / NFC Job Flow</h4>
+        <p class="text-slate-400 text-sm mt-2">Each Assignment has a QR code. Workers scan it at the station to start work. When complete, the item moves to the weigh station — the weigh session captures weight, photo, and NFC tag on the box, then prints a label. The Assignment auto-advances and the DailyGoal increments.</p>
+      </div>
+    </section>
+
+    <!-- ===================== WEIGH STATION ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-cyan-400">06</span> Weigh Station &amp; Packing
+      </h2>
+
+      <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 lg:col-span-2">
+          <h3 class="text-cyan-300 font-semibold">Data Model</h3>
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-400">
+            <div>
+              <span class="text-white">WeighSession</span><br/>
+              work_order / assignment / part / worker (User) / weigh_station<br/>
+              weight_value (decimal) / unit (kg, lb, g)<br/>
+              photo (Active Storage — one attached image)<br/>
+              nfc_tag (string — scanned from box/pallet)<br/>
+              printed_label (boolean) / printed_at<br/>
+              recorded_at (timestamp)
+            </div>
+            <div>
+              <span class="text-white">WeighStation</span><br/>
+              name / code / description<br/>
+              has_scale / has_camera / has_printer / has_nfc_reader (booleans)<br/>
+              ip_address / port (for scale integration)
+            </div>
+            <div>
+              <span class="text-white">NfcTag</span><br/>
+              tag_uid (unique identifier from NFC chip)<br/>
+              taggable (polymorphic: Shipment, Box, Pallet)<br/>
+              written_at / written_by (User)
+            </div>
+            <div>
+              <span class="text-white">Shipment / Box</span><br/>
+              shipment_number / nfc_tag_id / contents (JSON / text)<br/>
+              gross_weight / net_weight / weight_unit<br/>
+              destination / status (packing → sealed → shipped)
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-cyan-300 font-semibold">Station UX Flow</h3>
+          <div class="mt-3 text-sm space-y-3 text-slate-400">
+            <div class="bg-slate-700/50 rounded-lg p-3">
+              <p class="text-white text-xs font-semibold tracking-wider">STEP 1</p>
+              <p>Worker scans Assignment QR or selects WorkOrder on the tablet.</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-3">
+              <p class="text-white text-xs font-semibold tracking-wider">STEP 2</p>
+              <p>Places finished item on the scale. Weight auto-populates via RS-232 / USB HID. The station runs on a dedicated Ubuntu box connected to the network.</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-3">
+              <p class="text-white text-xs font-semibold tracking-wider">STEP 3</p>
+              <p>USB camera captures a photo of the item on the scale (evidence for QC / ISO traceability). Stored to local disk on the Ubuntu station, reported back to the server.</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-3">
+              <p class="text-white text-xs font-semibold tracking-wider">STEP 4</p>
+              <p>Worker scans NFC tag on the box/pallet being packed. Tag links the item to the shipment.</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-3">
+              <p class="text-white text-xs font-semibold tracking-wider">STEP 5</p>
+              <p>Zebra printer outputs a label. Design TBD — existing label system info to follow.</p>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-3">
+              <p class="text-white text-xs font-semibold tracking-wider">STEP 6</p>
+              <p>WeighSession saved. DailyGoal increments. Worker moves on to next item.</p>
+            </div>
+            <div class="bg-cyan-900/30 rounded-lg p-3 border border-cyan-700/50">
+              <p class="text-white text-xs font-semibold tracking-wider">OFFLINE</p>
+              <p>Weigh sessions queue locally on the Ubuntu box when the server is unreachable. Auto-syncs in order when connectivity returns. No data loss on WiFi dropout.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== INVENTORY + WAREHOUSE ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-amber-400">07</span> Inventory &amp; Warehouse View
+      </h2>
+
+      <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 lg:col-span-2">
+          <h3 class="text-amber-300 font-semibold">Data Model</h3>
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-400">
+            <div>
+              <span class="text-white">Part</span><br/>
+              part_number / name / description / unit / category / reorder_point / lead_time_days / current_stock / location_id / qr_code
+            </div>
+            <div>
+              <span class="text-white">StockLocation</span><br/>
+              name / code / aisle / rack / bin / description / qr_code<br/>
+              pos_x / pos_y (grid coordinates for 2D map)<br/>
+              parent_id (for hierarchy: Aisle &gt; Rack &gt; Bin)
+            </div>
+            <div>
+              <span class="text-white">InventoryTransaction</span><br/>
+              part / type (receipt / issue / adjustment / transfer / weigh_out) / quantity / reference (polymorphic) / user / timestamp
+            </div>
+            <div>
+              <span class="text-white">BillOfMaterial</span><br/>
+              parent_part / component_part / quantity_per_assembly / notes
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-amber-300 font-semibold">Key Features</h3>
+          <ul class="mt-3 text-sm space-y-2 text-slate-400">
+            <li>• Real-time stock-on-hand per part</li>
+            <li>• Low-stock alerts when below reorder_point</li>
+            <li>• Inventory transaction journal (auditable)</li>
+            <li>• BOM explosion: "what parts are needed for WO-042?"</li>
+            <li>• Auto-deduct from inventory when weigh session completes</li>
+            <li>• QR code on bin locations for mobile cycle counts</li>
+            <li>• CSV import / export for bulk operations</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Warehouse View -->
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-amber-300 font-semibold">2D Warehouse Map</h3>
+          <ul class="mt-3 text-sm space-y-2 text-slate-400">
+            <li>• Interactive SVG/Canvas map rendered from <span class="text-white">pos_x / pos_y</span> coordinates on StockLocation</li>
+            <li>• Racks and bins drawn as coloured rectangles on a grid</li>
+            <li>• Colour coding by stock status: green (stocked), yellow (low), red (empty/critical)</li>
+            <li>• Click a bin to see contents + stock level + last transaction</li>
+            <li>• Zoom / pan for large warehouses</li>
+            <li>• Toggle heatmap mode: bins coloured by stock velocity (fast/slow movers)</li>
+          </ul>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
+          <h3 class="text-amber-300 font-semibold">Location Hierarchy Browser</h3>
+          <ul class="mt-3 text-sm space-y-2 text-slate-400">
+            <li>• Tree/grid navigation: <span class="text-white">Aisle A &gt; Rack A-03 &gt; Bin A-03-07</span></li>
+            <li>• Breadcrumb trail showing current location in the hierarchy</li>
+            <li>• Search by location name, code, or scanned QR</li>
+            <li>• Parts list at each level with stock counts</li>
+            <li>• Mobile-optimized for walk-around picking and putaway</li>
+            <li>• Toggle between map view and hierarchy view</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== CROSS-CUTTING ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">08</span> Cross-Cutting Concerns
+      </h2>
+      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">QR Codes Everywhere</h4>
+          <p class="text-slate-400 mt-1">Documents (per published version), Assignments (per job), Parts (per SKU), Stock Locations (per bin), Shipments (per box).</p>
+        </div>
+
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">NFC for Shipments</h4>
+          <p class="text-slate-400 mt-1">NFC tags on boxes/pallets scanned at the weigh station to associate weighed items with shipments. Handheld readers for packing/stacking verification.</p>
+        </div>
+
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">Unified Audit</h4>
+          <p class="text-slate-400 mt-1">PaperTrail on all core models. WeighSessions include photos as evidence. One audit trail for ISO compliance + production traceability.</p>
+        </div>
+
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">Dashboard &amp; Reporting</h4>
+          <p class="text-slate-400 mt-1">Chartkick-powered live dashboard: schedule, daily goals, pending approvals, low-stock alerts, weigh sessions. Custom report builder with dynamic filters, column selection, and CSV/PDF export for ad-hoc data analysis.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== QR CODE + NFC ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">09</span> QR &amp; NFC Strategy
+      </h2>
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          <div>
+            <h4 class="text-white font-semibold">QR Codes</h4>
+            <ul class="mt-2 space-y-2 text-slate-400">
+              <li>• <strong>Documents</strong> — version-pinned on publish, superseded redirect</li>
+              <li>• <strong>Assignments</strong> — scan at station to start job</li>
+              <li>• <strong>Parts</strong> — scan for spec sheet + stock</li>
+              <li>• <strong>Bins / Locations</strong> — scan for cycle count</li>
+              <li>• <strong>Labels</strong> — printed at weigh station for traceback</li>
+              <li>• URL: <code class="bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded text-xs">https://shop.example.com/s/{model}/{id}</code></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="text-white font-semibold">NFC Tags</h4>
+            <ul class="mt-2 space-y-2 text-slate-400">
+              <li>• Affixed to boxes and pallets during packing</li>
+              <li>• Scanned at weigh station to link item → box → shipment</li>
+              <li>• Handheld NFC reader for stacking/loading verification</li>
+              <li>• Tag UID stored in <span class="text-white">NfcTag</span> model, polymorphic to any container</li>
+              <li>• Read/write: tag stores shipment number + timestamp for offline lookup</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FULL DATA MODEL ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">10</span> Full Data Model
+      </h2>
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div>
+          <h3 class="text-indigo-300 font-semibold text-sm mb-3">Docs &amp; Compliance</h3>
+          <ul class="bg-slate-800 rounded-xl p-5 border border-slate-700 text-sm space-y-2 text-slate-400">
+            <li><span class="text-white">User</span> (Devise) — email / role / name / department / employee_id</li>
+            <li><span class="text-white">Document</span> — title / slug / status / content (ActionText) / author / category / standard_ref / document_number / qr_code / version</li>
+            <li><span class="text-white">Category</span> — name / slug / parent</li>
+            <li><span class="text-white">Comment</span> (Polymorphic) — body / author / resolved_at</li>
+            <li><span class="text-white">Approval</span> — approver / document_version / decision / comment / signed_at</li>
+            <li><span class="text-white">Version</span> (PaperTrail) — auto per save; full diff + whodunnit</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-emerald-300 font-semibold text-sm mb-3">Production Scheduling</h3>
+          <ul class="bg-slate-800 rounded-xl p-5 border border-slate-700 text-sm space-y-2 text-slate-400">
+            <li><span class="text-white">Shift</span> — name / date / start_time / end_time / station_id</li>
+            <li><span class="text-white">WorkStation</span> — name / code / department / station_type / description</li>
+            <li><span class="text-white">WorkOrder</span> — order_number / part_id / quantity / due_date / status / priority / notes</li>
+            <li><span class="text-white">Assignment</span> — shift / work_order / worker / station / planned_start / planned_end / actual_start / actual_end / notes</li>
+            <li><span class="text-white">DailyGoal</span> — date / station / worker (optional) / target_quantity / unit / achieved_quantity</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-cyan-300 font-semibold text-sm mb-3">Weigh Station &amp; Packing</h3>
+          <ul class="bg-slate-800 rounded-xl p-5 border border-slate-700 text-sm space-y-2 text-slate-400">
+            <li><span class="text-white">WeighStation</span> — name / code / has_scale / has_camera / has_printer / has_nfc_reader / ip_address / scale_type (rs232 | usb_hid) / printer_model</li>
+            <li><span class="text-white">WeighSession</span> — work_order / assignment / part / worker / station / weight_value / unit / photo (local disk) / nfc_tag / printed_label / recorded_at / synced_at (null if queued offline)</li>
+            <li><span class="text-white">NfcTag</span> — tag_uid (unique) / taggable (polymorphic: Box, Pallet, Shipment) / written_at / written_by</li>
+            <li><span class="text-white">Shipment</span> — shipment_number / nfc_tag_id / contents / gross_weight / net_weight / destination / status</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-amber-300 font-semibold text-sm mb-3">Inventory &amp; Warehouse</h3>
+          <ul class="bg-slate-800 rounded-xl p-5 border border-slate-700 text-sm space-y-2 text-slate-400">
+            <li><span class="text-white">Part</span> — part_number / name / description / unit / category / reorder_point / lead_time / current_stock / location / qr_code</li>
+            <li><span class="text-white">StockLocation</span> — name / code / aisle / rack / bin / pos_x / pos_y / parent_id / qr_code</li>
+            <li><span class="text-white">InventoryTransaction</span> — part / type / quantity / reference (polymorphic) / user / notes / timestamp</li>
+            <li><span class="text-white">BillOfMaterial</span> — parent_part / component_part / quantity_per_assembly / notes</li>
+          </ul>
+        </div>
+
+        <div class="md:col-span-2">
+          <h3 class="text-slate-300 font-semibold text-sm mb-3">Cross-Cutting</h3>
+          <ul class="bg-slate-800 rounded-xl p-5 border border-slate-700 text-sm space-y-2 text-slate-400">
+            <li><span class="text-white">Notification</span> — recipient / actor / action / notifiable (polymorphic) / read_at</li>
+            <li><span class="text-white">Audit</span> (PaperTrail) — unified traceability for ISO 9001 (targeting 2026 standard, not yet certified)</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== DEPLOYMENT ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">11</span> Deployment Architecture
+      </h2>
+
+      <div class="mt-6 bg-slate-800/70 rounded-xl border border-slate-700 p-6 font-mono text-sm leading-relaxed">
+        <div class="text-slate-500">┌─────────────────────────────────────────────────┐</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">│  <span class="text-indigo-300">Apple Silicon Dev Machine (macOS)</span></div>
+        <div class="text-slate-500">│  └── Multipass VM (Ubuntu)</div>
+        <div class="text-slate-500">│      ├── Local Rails dev server</div>
+        <div class="text-slate-500">│      ├── Docker buildx (linux/amd64)</div>
+        <div class="text-slate-500">│      └── Kamal deploy → production</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">│  <span class="text-indigo-300">Production: Rocky Linux (bare metal or VM)</span></div>
+        <div class="text-slate-500">│  └── Incus / LXD system containers</div>
+        <div class="text-slate-500">│      ├── <span class="text-green-400">app</span>          Rails (Puma + Kamal proxy)</div>
+        <div class="text-slate-500">│      ├── <span class="text-green-400">worker</span>       Solid Queue</div>
+        <div class="text-slate-500">│      ├── <span class="text-green-400">postgres</span>     PostgreSQL 16</div>
+        <div class="text-slate-500">│      └── <span class="text-green-400">redis</span>         Redis (cache + queues)</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">│  <span class="text-indigo-300">Shop Floor Stations</span></div>
+        <div class="text-slate-500">│  ├── Weigh stations (browser + scale + camera + printer + NFC)</div>
+        <div class="text-slate-500">│  ├── Production station tablets (browser, QR scanning)</div>
+        <div class="text-slate-500">│  └── Handheld NFC readers (packing / stacking)</div>
+        <div class="text-slate-500">│</div>
+        <div class="text-slate-500">└─────────────────────────────────────────────────┘</div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">Local Dev</h4>
+          <p class="text-slate-400 mt-1">Multipass spins up Ubuntu VMs on Apple Silicon. Matches the Rocky Linux production environment closely. Docker buildx cross-compiles amd64 images.</p>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">Deploy</h4>
+          <p class="text-slate-400 mt-1">Kamal deploys via SSH to Incus/LXD containers on Rocky Linux. App hot-swapped; Solid Queue workers drain gracefully. Incus is the community fork of LXD — either works.</p>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h4 class="text-white font-semibold">Backup &amp; Retention</h4>
+          <p class="text-slate-400 mt-1">pg_dump cron to S3. Weigh session photos stored on local disk at each station, reported to server. Auto-purge photos after 365 days. PaperTrail versions for point-in-time recovery. Inventory transactions append-only.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== GEMS ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">12</span> Key Gems
+      </h2>
+
+      <h3 class="text-white text-sm font-semibold mt-6 mb-3">Application Core</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">devise</span><span class="text-slate-500 block mt-0.5">Authentication</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">pundit</span><span class="text-slate-500 block mt-0.5">Role-based authorization</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">paper_trail</span><span class="text-slate-500 block mt-0.5">Versioning + audit trail</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">aasm</span><span class="text-slate-500 block mt-0.5">State machines (docs, work orders)</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">rqrcode</span><span class="text-slate-500 block mt-0.5">QR generation (all modules)</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">pg_search</span><span class="text-slate-500 block mt-0.5">Full-text search (docs + parts)</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">simple_calendar</span><span class="text-slate-500 block mt-0.5">Calendar views</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">chartkick + groupdate</span><span class="text-slate-500 block mt-0.5">Dashboards + time-series aggregation</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">kaminari</span><span class="text-slate-500 block mt-0.5">Pagination</span></div>
+      </div>
+
+      <h3 class="text-white text-sm font-semibold mt-6 mb-3">Frontend &amp; UI</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">tailwindcss-rails</span><span class="text-slate-500 block mt-0.5">Tailwind CSS integration gem</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">view_component</span><span class="text-slate-500 block mt-0.5">Reusable UI components (replaces partials)</span></div>
+      </div>
+
+      <h3 class="text-white text-sm font-semibold mt-6 mb-3">Background Jobs</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">solid_queue</span><span class="text-slate-500 block mt-0.5">Rails 8 native job backend (or Sidekiq)</span></div>
+      </div>
+
+      <h3 class="text-white text-sm font-semibold mt-6 mb-3">Code Standards &amp; Security (CI-blocking)</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">standard</span><span class="text-slate-500 block mt-0.5">Zero-config RuboCop — enforces community style, no debates</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">brakeman</span><span class="text-slate-500 block mt-0.5">Security scanner — CI-gated</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">bundler-audit</span><span class="text-slate-500 block mt-0.5">Vulnerable gem versions — CI-gated</span></div>
+      </div>
+
+      <h3 class="text-white text-sm font-semibold mt-6 mb-3">Testing</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">rspec-rails</span><span class="text-slate-500 block mt-0.5">Testing framework</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">factory_bot_rails</span><span class="text-slate-500 block mt-0.5">Test data factories (replaces fixtures)</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">faker</span><span class="text-slate-500 block mt-0.5">Realistic test data names, dates, etc.</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">shoulda-matchers</span><span class="text-slate-500 block mt-0.5">One-liner model specs (validations, associations)</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">cuprite</span><span class="text-slate-500 block mt-0.5">Headless Chrome driver (no Java/Selenium)</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">simplecov</span><span class="text-slate-500 block mt-0.5">Coverage enforcement</span></div>
+      </div>
+
+      <h3 class="text-white text-sm font-semibold mt-6 mb-3">Developer Experience (dev/test only)</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">foreman</span><span class="text-slate-500 block mt-0.5">Run Puma + queue + Tailwind watcher in one command</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">annotate</span><span class="text-slate-500 block mt-0.5">Schema summary in model files</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">letter_opener</span><span class="text-slate-500 block mt-0.5">Preview emails in browser</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">pry-rails</span><span class="text-slate-500 block mt-0.5">Better rails console + binding.pry</span></div>
+        <div class="bg-slate-800 rounded-lg p-4 border border-slate-700"><span class="text-indigo-300 font-medium">solargraph</span><span class="text-slate-500 block mt-0.5">LSP autocomplete in editor</span></div>
+      </div>
+    </section>
+
+    <!-- ===================== ROUTES ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">13</span> Proposed Routes
+      </h2>
+      <div class="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6 font-mono text-sm text-slate-400">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1.5">
+
+          <div><span class="text-indigo-400">GET</span>    /</div> <div>Dashboard — schedule, goals, alerts</div>
+
+          <div class="text-indigo-400 text-xs tracking-wider mt-2 mb-1 md:col-span-2">── Documents ──</div>
+          <div><span class="text-indigo-400">GET</span>    /documents</div> <div>Browse / search</div>
+          <div><span class="text-indigo-400">GET</span>    /documents/new</div> <div>New draft</div>
+          <div><span class="text-indigo-400">POST</span>   /documents</div> <div>Create</div>
+          <div><span class="text-indigo-400">GET</span>    /documents/:id</div> <div>View</div>
+          <div><span class="text-indigo-400">patch</span>  /documents/:id</div> <div>Update</div>
+          <div><span class="text-indigo-400">POST</span>   /documents/:id/submit</div> <div>Submit for review</div>
+          <div><span class="text-indigo-400">POST</span>   /documents/:id/approve</div> <div>Approve</div>
+          <div><span class="text-indigo-400">POST</span>   /documents/:id/reject</div> <div>Reject</div>
+          <div><span class="text-indigo-400">POST</span>   /documents/:id/publish</div> <div>Publish (generates QR)</div>
+          <div><span class="text-indigo-400">POST</span>   /documents/:id/archive</div> <div>Archive</div>
+          <div><span class="text-indigo-400">GET</span>    /documents/:id/qr_code</div> <div>Download QR</div>
+          <div><span class="text-indigo-400">GET</span>    /documents/:id/versions</div> <div>Version history</div>
+          <div><span class="text-indigo-400">GET</span>    /documents/:id/diff?v1&amp;v2</div> <div>Side-by-side diff</div>
+
+          <div class="text-emerald-400 text-xs tracking-wider mt-2 mb-1 md:col-span-2">── Schedule ──</div>
+          <div><span class="text-indigo-400">GET</span>    /schedule</div> <div>Calendar (month/week/day)</div>
+          <div><span class="text-indigo-400">GET</span>    /schedule/my</div> <div>My assigned shifts (Operator)</div>
+          <div><span class="text-indigo-400">GET</span>    /shifts</div> <div>Manage shifts</div>
+          <div><span class="text-indigo-400">POST</span>   /shifts</div> <div>Create shift</div>
+          <div><span class="text-indigo-400">get</span>    /work_orders</div> <div>Work order list</div>
+          <div><span class="text-indigo-400">POST</span>   /work_orders</div> <div>Create work order</div>
+          <div><span class="text-indigo-400">GET</span>    /work_orders/:id</div> <div>Detail + BOM</div>
+          <div><span class="text-indigo-400">POST</span>   /assignments/:id/start</div> <div>Start job (QR scan)</div>
+          <div><span class="text-indigo-400">POST</span>   /assignments/:id/complete</div> <div>Complete job</div>
+          <div><span class="text-indigo-400">GET</span>    /goals</div> <div>Daily goals dashboard</div>
+          <div><span class="text-indigo-400">POST</span>   /goals</div> <div>Set daily goal</div>
+
+          <div class="text-cyan-400 text-xs tracking-wider mt-2 mb-1 md:col-span-2">── Weigh Station ──</div>
+          <div><span class="text-indigo-400">GET</span>    /weigh_stations</div> <div>List stations</div>
+          <div><span class="text-indigo-400">GET</span>    /weigh_stations/:id/session</div> <div>New weigh session</div>
+          <div><span class="text-indigo-400">POST</span>   /weigh_sessions</div> <div>Save weigh session</div>
+          <div><span class="text-indigo-400">GET</span>    /weigh_sessions</div> <div>Weigh log (audit trail)</div>
+          <div><span class="text-indigo-400">GET</span>    /weigh_sessions/:id/photo</div> <div>View captured photo</div>
+          <div><span class="text-indigo-400">POST</span>   /weigh_sessions/:id/print_label</div> <div>Re-print label</div>
+          <div><span class="text-indigo-400">GET</span>    /shipments</div> <div>Shipment tracking</div>
+          <div><span class="text-indigo-400">POST</span>   /nfc_tags/scan</div> <div>Scan NFC tag</div>
+
+          <div class="text-amber-400 text-xs tracking-wider mt-2 mb-1 md:col-span-2">── Inventory / Warehouse ──</div>
+          <div><span class="text-indigo-400">GET</span>    /parts</div> <div>Part catalog</div>
+          <div><span class="text-indigo-400">POST</span>   /parts</div> <div>Create part</div>
+          <div><span class="text-indigo-400">GET</span>    /parts/:id</div> <div>Detail + stock history</div>
+          <div><span class="text-indigo-400">GET</span>    /parts/:id/qr_code</div> <div>Part QR download</div>
+          <div><span class="text-indigo-400">GET</span>    /warehouse/map</div> <div>2D warehouse map</div>
+          <div><span class="text-indigo-400">GET</span>    /warehouse/browse</div> <div>Location hierarchy browser</div>
+          <div><span class="text-indigo-400">GET</span>    /inventory/transactions</div> <div>Transaction journal</div>
+          <div><span class="text-indigo-400">POST</span>   /inventory/adjust</div> <div>Manual stock adjustment</div>
+
+          <div class="text-slate-500 text-xs tracking-wider mt-2 mb-1 md:col-span-2">── Admin ──</div>
+          <div><span class="text-indigo-400">GET</span>    /users</div> <div>User management</div>
+          <div><span class="text-indigo-400">GET</span>    /qr/batch</div> <div>Batch QR download</div>
+          <div><span class="text-indigo-400">GET</span>    /audit</div> <div>Audit log viewer</div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== MILESTONES ===================== -->
+    <section>
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">14</span> Milestones
+      </h2>
+      <div class="mt-6 space-y-4">
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M1</span>
+          <div>
+            <h3 class="text-white font-semibold">Auth + Roles + Doc CRUD</h3>
+            <p class="text-slate-400 text-sm mt-1">Rails new, Devise + Pundit, role seed data (Viewer, Operator, Author, Reviewer, Approver, Scheduler, Admin), Document CRUD with ActionText, Tailwind layout shell, categories.</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M2</span>
+          <div>
+            <h3 class="text-white font-semibold">Document Workflow + Versioning</h3>
+            <p class="text-slate-400 text-sm mt-1">AASM state machine, submit/review/approve/publish/archive, PaperTrail, version history UI, side-by-side diffs, threaded comments.</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M3</span>
+          <div>
+            <h3 class="text-white font-semibold">Production Scheduling + Daily Goals</h3>
+            <p class="text-slate-400 text-sm mt-1">Shift / WorkOrder / Assignment / WorkStation models, simple_calendar views, drag-and-drop, "My Schedule", DailyGoal model, real-time progress tracking per station and worker.</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M4</span>
+          <div>
+            <h3 class="text-white font-semibold">Weigh Station &amp; Packing</h3>
+            <p class="text-slate-400 text-sm mt-1">WeighStation / WeighSession models, scale integration, camera capture (Active Storage), label printing, 6-step station UX flow. NFC tag scanning for boxing/shipment tracking. Shipment model.</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M5</span>
+          <div>
+            <h3 class="text-white font-semibold">Inventory + Warehouse Views</h3>
+            <p class="text-slate-400 text-sm mt-1">Part / StockLocation (with pos_x/pos_y) / InventoryTransaction / BOM models, stock views, transaction journal, low-stock alerts, 2D warehouse SVG map, location hierarchy browser.</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M6</span>
+          <div>
+            <h3 class="text-white font-semibold">QR Codes + Search + Dashboard</h3>
+            <p class="text-slate-400 text-sm mt-1">QR generation across all modules, pg_search, unified Chartkick dashboard (goals, schedule, approvals, alerts, weigh log), batch QR export, audit log viewer.</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 flex items-start gap-4">
+          <span class="text-indigo-400 font-bold text-lg shrink-0 w-8">M7</span>
+          <div>
+            <h3 class="text-white font-semibold">Integration + Deploy</h3>
+            <p class="text-slate-400 text-sm mt-1">Auto-deduct inventory on weigh session complete, NFC/QR end-to-end flow, Dockerfile, Kamal config, Multipass dev setup, Rocky Linux host, Incus/LXD containers, SSL, backup cron, smoke tests, go live.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================== OPEN QUESTIONS ===================== -->
+    <section class="border-t border-slate-800 pt-10 pb-8">
+      <h2 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">✓</span> Resolved &amp; <span class="text-indigo-400">?</span> Still Open
+      </h2>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <h3 class="text-emerald-400 text-xs font-semibold tracking-wider uppercase">Resolved</h3>
+          <ul class="mt-2 space-y-1.5 text-slate-400">
+            <li><span class="text-emerald-400">✓</span> Scale: RS-232 / USB HID</li>
+            <li><span class="text-emerald-400">✓</span> Camera: USB</li>
+            <li><span class="text-emerald-400">✓</span> Printer: Zebra</li>
+            <li><span class="text-emerald-400">✓</span> Offline queue: yes, auto-sync</li>
+            <li><span class="text-emerald-400">✓</span> Photos: local disk, 365-day purge</li>
+            <li><span class="text-emerald-400">✓</span> Platform: web-first, native tablet later</li>
+            <li><span class="text-emerald-400">✓</span> Timekeeping: Gusto (external, no direct integration)</li>
+            <li><span class="text-emerald-400">✓</span> Language: English only</li>
+            <li><span class="text-emerald-400">✓</span> ISO: targeting 9001 (2026), not certified</li>
+            <li><span class="text-emerald-400">✓</span> Reports: custom/dynamic builder</li>
+            <li><span class="text-emerald-400">✓</span> Security: post-implementation</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="text-amber-400 text-xs font-semibold tracking-wider uppercase">Still Open</h3>
+          <ul class="mt-2 space-y-1.5 text-slate-400">
+            <li><span class="text-amber-400">?</span> Label design — existing label system details TBD</li>
+            <li><span class="text-amber-400">?</span> NFC reader model — fixed station reader or handheld?</li>
+            <li><span class="text-amber-400">?</span> Report types needed — what dimensions matter most? (worker, shift, part, station, date range?)</li>
+            <li><span class="text-amber-400">?</span> Notifications — email/in-app for approvals, job assignments, stock alerts?</li>
+            <li><span class="text-amber-400">?</span> Purchase Orders — extend inventory with PO creation and receiving?</li>
+            <li><span class="text-amber-400">?</span> API — REST API for future mobile app or ERP integration?</li>
+            <li><span class="text-amber-400">?</span> Multi-plant — isolated data per facility down the road?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-600">
+    Design Document &mdash; Shopfloor Operations Platform &mdash; v3
+  </footer>
+
+</body>
+</html>
