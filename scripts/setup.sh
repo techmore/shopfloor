@@ -474,16 +474,19 @@ echo ""
 echo "================================================================"
 echo "  Your Rails app is ready!"
 echo "================================================================"
-echo ""
-echo "  Starting server..."
+echo "  Verifying server..."
 multipass exec "$VM_NAME" -- bash -c "source \$HOME/.asdf/asdf.sh && cd \$HOME/$APP_NAME && nohup bin/rails server -b 0.0.0.0 -p 3000 &>/tmp/rails.log & disown" 2>/dev/null
 sleep 3
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$VM_IP:3000/" 2>/dev/null || echo "failed")
 if [ "$HTTP_CODE" = "200" ]; then
-  echo "  Server is live! ✓"
+  echo "  Server responding ✓"
 else
   echo "  Server not responding yet — start manually: multipass shell $VM_NAME && cd ~/$APP_NAME && rails server -b 0.0.0.0"
 fi
+echo ""
+echo "================================================================"
+echo "  ✓ Setup complete!"
+echo "================================================================"
 echo ""
 echo "  Open in your browser:"
 echo "    http://$VM_IP:3000"
