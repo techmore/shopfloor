@@ -261,26 +261,12 @@ BOMFIX
   rails generate devise:install --force
   rails generate devise User role:integer name:string department:string employee_id:string --force 2>/dev/null || true
 
-  # Overwrite User model with role enum
-  echo '--- Writing User model ---'
-  cat > app/models/user.rb << 'USERMODEL'
-class User < ApplicationRecord
-  devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable
-
-  enum :role, { viewer: 0, operator: 1, author: 2, reviewer: 3, approver: 4, scheduler: 5, admin: 6 }
-  validates :name, :role, presence: true
-  scope :active, -> { where(active: true) }
-
-  def admin?       = role == 'admin'
-  def scheduler?   = role == 'scheduler'
-  def approver?    = role == 'approver'
-  def reviewer?    = role == 'reviewer'
-  def author?      = role == 'author'
-  def operator?    = role == 'operator'
-  def viewer?      = role == 'viewer'
-end
-USERMODEL
+  # Overwrite all models with proper associations, enums, validations, PaperTrail
+  echo '--- Writing all models ---'
+  bash bootstrap/models.sh
+  # Must delete the auto-generated migration (it has no columns besides email)
+  # so the FK columns in devise_create_users survive.
+  rm -f db/migrate/*_add_active_to_users.rb
   rails db:migrate
 
   # Phase: User FK constraints + active column
@@ -349,6 +335,7 @@ POLICY
 class ApplicationController < ActionController::Base
   include Pundit::Authorization
   before_action :authenticate_user!
+  before_action :set_paper_trail_whodunnit
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
   private
