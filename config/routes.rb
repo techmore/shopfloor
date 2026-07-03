@@ -56,13 +56,13 @@ Rails.application.routes.draw do
   get "warehouse/map", to: "warehouse#map"
   get "warehouse/browse", to: "warehouse#browse"
 
+  devise_for :users
+
   resources :users, only: [:index, :show, :edit, :update]
   get "admin", to: "admin#dashboard"
   get "qr/batch", to: "admin#batch_qr"
   get "audit", to: "admin#audit_log"
   get "getting_started", to: "home#getting_started"
-
-  devise_for :users
 
   get "up" => "rails/health#show", as: :rails_health_check
 end
