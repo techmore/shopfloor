@@ -6,7 +6,7 @@ set -euo pipefail
 source "$HOME/.asdf/asdf.sh"
 cd /home/ubuntu/shopfloor
 
-mkdir -p app/views/admin app/policies
+mkdir -p app/views/admin app/views/users app/policies
 
 # ---- UserPolicy ----
 cat > app/policies/user_policy.rb << 'RUBY'
