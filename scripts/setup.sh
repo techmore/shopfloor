@@ -407,7 +407,8 @@ Rails.application.routes.draw do
   get 'warehouse/map', to: 'warehouse#map'
   get 'warehouse/browse', to: 'warehouse#browse'
 
-  resources :users, only: [:index, :edit, :update]
+  resources :users, only: [:index, :show, :edit, :update]
+  get 'admin', to: 'admin#dashboard'
   get 'qr/batch', to: 'admin#batch_qr'
   get 'audit', to: 'admin#audit_log'
 
@@ -425,6 +426,10 @@ ROUTES
   # Phase: Document Management
   echo '--- Setting up Document Management ---'
   bash bootstrap/documents.sh
+
+  # Phase: Admin / User Management
+  echo '--- Setting up Admin ---'
+  bash bootstrap/admin.sh
 
   # Rebuild Tailwind CSS with daisyui plugin
   rails tailwindcss:build
