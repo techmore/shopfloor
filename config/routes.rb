@@ -60,6 +60,7 @@ Rails.application.routes.draw do
   get "admin", to: "admin#dashboard"
   get "qr/batch", to: "admin#batch_qr"
   get "audit", to: "admin#audit_log"
+  get "getting_started", to: "home#getting_started"
 
   devise_for :users
 

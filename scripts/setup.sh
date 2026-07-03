@@ -415,6 +415,7 @@ Rails.application.routes.draw do
   get 'admin', to: 'admin#dashboard'
   get 'qr/batch', to: 'admin#batch_qr'
   get 'audit', to: 'admin#audit_log'
+  get 'getting_started', to: 'home#getting_started'
 
   devise_for :users
 end
@@ -475,6 +476,41 @@ SEED
   echo '--- Bootstrap phases complete ---'
 "
 
+# Save credentials to the mount for easy access from the host
+cat > "$MOUNT_POINT/credentials.txt" <<- CRED
+===========================================
+  Shopfloor Demo Credentials
+===========================================
+  URL: http://$VM_IP:3000
+  All passwords: password123
+
+  Admin (full access):
+    Email: admin@shopfloor.local
+
+  Scheduler:
+    Email: scheduler@shopfloor.local
+
+  Author (create documents):
+    Email: author@shopfloor.local
+
+  Reviewer (review documents):
+    Email: reviewer@shopfloor.local
+
+  Approver (approve documents):
+    Email: approver@shopfloor.local
+
+  Operator (weigh sessions, assignments):
+    Email: operator@shopfloor.local
+
+  Viewer (read-only):
+    Email: viewer@shopfloor.local
+
+===========================================
+  Getting Started: http://$VM_IP:3000/getting_started
+===========================================
+CRED
+echo "  Credentials saved to: $MOUNT_POINT/credentials.txt"
+
 # ---- Step 7: Show results ----
 echo ""
 echo "=== [7/7] Done! ==="
@@ -499,14 +535,19 @@ echo ""
 echo "  Open in your browser:"
 echo "    http://$VM_IP:3000"
 echo ""
+echo "  Getting Started Guide:"
+echo "    http://$VM_IP:3000/getting_started"
+echo ""
 echo "  Demo accounts (all use password: password123):"
-echo "    admin@shopfloor.local   (Admin — full access)"
-echo "    scheduler@shopfloor.local (Scheduler)"
-echo "    operator@shopfloor.local  (Operator)"
-echo "    author@shopfloor.local    (Author)"
-echo "    reviewer@shopfloor.local  (Reviewer)"
-echo "    approver@shopfloor.local  (Approver)"
-echo "    viewer@shopfloor.local    (Viewer)"
+echo "    admin@shopfloor.local       (Admin — full access)"
+echo "    scheduler@shopfloor.local   (Scheduler)"
+echo "    operator@shopfloor.local    (Operator)"
+echo "    author@shopfloor.local      (Author)"
+echo "    reviewer@shopfloor.local    (Reviewer)"
+echo "    approver@shopfloor.local    (Approver)"
+echo "    viewer@shopfloor.local      (Viewer)"
+echo ""
+echo "  Credentials also saved to: $PWD/credentials.txt"
 echo ""
 echo "  Stop the VM when done:"
 echo "    multipass stop $VM_NAME"
