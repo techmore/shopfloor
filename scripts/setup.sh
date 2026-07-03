@@ -75,14 +75,26 @@ multipass exec "$VM_NAME" -- bash << 'BOOTSTRAP'
   set -euo pipefail
 
   echo "--- Updating packages ---"
-  sudo apt update && sudo apt upgrade -y
+  for attempt in 1 2 3; do
+    if sudo apt update && sudo apt upgrade -y; then
+      break
+    fi
+    echo "apt update/upgrade attempt $attempt failed, retrying in 10s..."
+    sleep 10
+  done
 
   echo "--- Installing system deps ---"
-  sudo apt install -y \
-    curl git build-essential libssl-dev libreadline-dev \
-    zlib1g-dev libyaml-dev libxml2-dev libxslt1-dev \
-    libpq-dev postgresql postgresql-contrib redis-server \
-    imagemagick libsqlite3-dev
+  for attempt in 1 2 3; do
+    if sudo apt install -y \
+      curl git build-essential libssl-dev libreadline-dev \
+      zlib1g-dev libyaml-dev libxml2-dev libxslt1-dev \
+      libpq-dev postgresql postgresql-contrib redis-server \
+      imagemagick libsqlite3-dev; then
+      break
+    fi
+    echo "apt install attempt $attempt failed, retrying in 5s..."
+    sleep 5
+  done
 
   echo "--- Installing asdf (v0.15.0) ---"
   if [ ! -d "$HOME/.asdf" ]; then
