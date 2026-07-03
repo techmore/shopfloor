@@ -104,6 +104,7 @@ class WorkStationsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize WorkStation
     @work_stations = policy_scope(WorkStation).order(:name)
   end
 
@@ -161,6 +162,7 @@ class ShiftsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize Shift
     @date = params[:date]&.to_date || Date.current
     @shifts = policy_scope(Shift).where(date: @date.all_week).includes(:work_station, assignments: [:worker, :work_order]).order(:date, :start_time)
   end
@@ -218,6 +220,7 @@ class WorkOrdersController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize WorkOrder
     @work_orders = policy_scope(WorkOrder).includes(:part).order(due_date: :asc)
     @work_orders = @work_orders.where(status: params[:status]) if params[:status].present?
   end
@@ -277,6 +280,7 @@ class AssignmentsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize Assignment
     @assignments = policy_scope(Assignment).includes(:shift, :work_order, :work_station, :worker).order(planned_start: :desc)
   end
 
@@ -345,6 +349,7 @@ class DailyGoalsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize DailyGoal
     @date = params[:date]&.to_date || Date.current
     @daily_goals = policy_scope(DailyGoal).where(date: @date).includes(:work_station, :worker)
   end
@@ -513,7 +518,7 @@ cat > app/views/work_stations/show.html.erb << 'ERB'
 </div>
 ERB
 
-WORKSTATION_FORM='<%= form_with(model: work_station, local: true) do |f| %>
+WORKSTATION_FORM='<%= form_with(model: @work_station, local: true) do |f| %>
   <div class="form-control"><%= f.label :name, class: "label" %><%= f.text_field :name, class: "input input-bordered w-full", required: true %></div>
   <div class="form-control"><%= f.label :code, class: "label" %><%= f.text_field :code, class: "input input-bordered w-full" %></div>
   <div class="form-control"><%= f.label :station_type, class: "label" %><%= f.select :station_type, WorkStation.station_types.keys.map { |r| [r.titleize, r] }, {}, class: "select select-bordered w-full" %></div>
@@ -531,7 +536,7 @@ cat > app/views/work_stations/edit.html.erb << ERB
 ERB
 
 # Shift views
-SHIFT_FORM='<%= form_with(model: shift, local: true) do |f| %>
+SHIFT_FORM='<%= form_with(model: @shift, local: true) do |f| %>
   <div class="form-control"><%= f.label :name, class: "label" %><%= f.text_field :name, class: "input input-bordered w-full" %></div>
   <div class="grid grid-cols-2 gap-4">
     <div class="form-control"><%= f.label :date, class: "label" %><%= f.date_field :date, class: "input input-bordered w-full" %></div>
@@ -647,7 +652,7 @@ cat > app/views/work_orders/show.html.erb << 'ERB'
 </div>
 ERB
 
-WORK_ORDER_FORM='<%= form_with(model: work_order, local: true) do |f| %>
+WORK_ORDER_FORM='<%= form_with(model: @work_order, local: true) do |f| %>
   <div class="form-control"><%= f.label :order_number, class: "label" %><%= f.text_field :order_number, class: "input input-bordered w-full" %></div>
   <div class="grid grid-cols-2 gap-4">
     <div class="form-control"><%= f.label :part_id, class: "label" %><%= f.collection_select :part_id, Part.order(:name), :id, :name, { include_blank: true }, class: "select select-bordered w-full" %></div>
@@ -716,7 +721,7 @@ cat > app/views/assignments/show.html.erb << 'ERB'
 </div></div>
 ERB
 
-ASSIGNMENT_FORM='<%= form_with(model: assignment, local: true) do |f| %>
+ASSIGNMENT_FORM='<%= form_with(model: @assignment, local: true) do |f| %>
   <div class="grid grid-cols-2 gap-4">
     <div class="form-control"><%= f.label :work_order_id, class: "label" %><%= f.collection_select :work_order_id, WorkOrder.order(:order_number), :id, :order_number, { include_blank: true }, class: "select select-bordered w-full" %></div>
     <div class="form-control"><%= f.label :worker_id, class: "label" %><%= f.collection_select :worker_id, User.active.order(:name), :id, :name, { include_blank: true }, class: "select select-bordered w-full" %></div>
@@ -769,7 +774,7 @@ cat > app/views/daily_goals/index.html.erb << 'ERB'
 <% if @daily_goals.empty? %><div class="text-center py-12 text-base-content/50"><p>No goals for this date.</p></div><% end %>
 ERB
 
-DAILY_GOAL_FORM='<%= form_with(model: daily_goal, local: true) do |f| %>
+DAILY_GOAL_FORM='<%= form_with(model: @daily_goal, local: true) do |f| %>
   <div class="form-control"><%= f.label :date, class: "label" %><%= f.date_field :date, class: "input input-bordered w-full" %></div>
   <div class="grid grid-cols-2 gap-4">
     <div class="form-control"><%= f.label :work_station_id, class: "label" %><%= f.collection_select :work_station_id, WorkStation.order(:name), :id, :name, { include_blank: true }, class: "select select-bordered w-full" %></div>

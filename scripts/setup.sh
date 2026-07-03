@@ -393,6 +393,7 @@ Rails.application.routes.draw do
     end
   end
   resources :shipments
+  resources :nfc_tags
   post 'nfc_tags/scan', to: 'nfc_tags#scan'
 
   resources :parts do

@@ -223,7 +223,7 @@ cat > app/views/admin/dashboard.html.erb << 'ERB'
 
 <div class="flex gap-3">
   <%= link_to "Manage Users", users_path, class: "btn btn-outline" %>
-  <%= link_to "Audit Log", audit_log_path, class: "btn btn-outline" %>
+  <%= link_to "Audit Log", audit_path, class: "btn btn-outline" %>
   <%= link_to "Batch QR", batch_qr_path, class: "btn btn-outline" %>
 </div>
 ERB

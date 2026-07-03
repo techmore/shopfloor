@@ -194,7 +194,7 @@ class Shipment < ApplicationRecord
   belongs_to :nfc_tag, optional: true
   has_paper_trail
 
-  enum :status, { created: 0, loaded: 1, in_transit: 2, delivered: 3 }
+  enum :status, { created: 0, loading: 1, in_transit: 2, delivered: 3 }
 
   validates :shipment_number, presence: true, uniqueness: true
 end

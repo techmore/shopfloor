@@ -115,6 +115,7 @@ class WeighStationsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize WeighStation
     @weigh_stations = policy_scope(WeighStation).order(:name)
   end
 
@@ -177,6 +178,7 @@ class WeighSessionsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize WeighSession
     @weigh_sessions = policy_scope(WeighSession).includes(:work_order, :part, :worker, :weigh_station).order(recorded_at: :desc).limit(100)
   end
 
@@ -224,6 +226,7 @@ class PartsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize Part
     @parts = policy_scope(Part).includes(:stock_location).order(:part_number)
     if params[:search].present?
       @parts = @parts.where("part_number ILIKE :q OR name ILIKE :q", q: "%#{params[:search]}%")
@@ -290,6 +293,7 @@ class StockLocationsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize StockLocation
     @stock_locations = policy_scope(StockLocation).order(:name)
   end
 
@@ -351,6 +355,7 @@ class BillOfMaterialsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize BillOfMaterial
     @bill_of_materials = policy_scope(BillOfMaterial).includes(:parent_part, :component_part).order(:id)
   end
 
@@ -407,6 +412,7 @@ class InventoryTransactionsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize InventoryTransaction
     @transactions = policy_scope(InventoryTransaction).includes(:part, :user).order(created_at: :desc).limit(100)
   end
 
@@ -454,6 +460,7 @@ class ShipmentsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize Shipment
     @shipments = policy_scope(Shipment).includes(:nfc_tag).order(created_at: :desc)
   end
 
@@ -510,6 +517,7 @@ class NfcTagsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize NfcTag
     @nfc_tags = policy_scope(NfcTag).includes(:taggable).order(created_at: :desc)
   end
 
@@ -1021,7 +1029,7 @@ cat > app/views/shipments/show.html.erb << 'ERB'
 </div></div>
 ERB
 
-SHIPMENT_FORM='<%= form_with(model: shipment, local: true, class: "space-y-4") do |f| %>
+SHIPMENT_FORM='<%= form_with(model: @shipment, local: true, class: "space-y-4") do |f| %>
   <div class="form-control"><%= f.label :shipment_number, class: "label" %><%= f.text_field :shipment_number, class: "input input-bordered w-full" %></div>
   <div class="grid grid-cols-2 gap-4">
     <div class="form-control"><%= f.label :destination, class: "label" %><%= f.text_field :destination, class: "input input-bordered w-full" %></div>

@@ -47,6 +47,7 @@ class DocumentsController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize Document
     @documents = policy_scope(Document).includes(:category, :author).order(updated_at: :desc)
     @documents = @documents.where(status: params[:status]) if params[:status].present?
     @documents = @documents.where(category_id: params[:category_id]) if params[:category_id].present?
@@ -159,6 +160,7 @@ class CategoriesController < ApplicationController
   after_action :verify_authorized
 
   def index
+    authorize Category
     @categories = policy_scope(Category).order(:name)
   end
 
