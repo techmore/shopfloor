@@ -156,7 +156,7 @@ multipass exec "$VM_NAME" -- bash -c "
   set -euo pipefail
   source \"\$HOME/.asdf/asdf.sh\"
 
-  cd '\$APP_DIR'
+  cd $APP_DIR
 
   # Phase: Gems
   echo '--- Adding gems ---'
