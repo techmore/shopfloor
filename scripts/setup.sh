@@ -431,6 +431,10 @@ ROUTES
   echo '--- Setting up Admin ---'
   bash bootstrap/admin.sh
 
+  # Phase: Production Scheduling
+  echo '--- Setting up Production Scheduling ---'
+  bash bootstrap/scheduling.sh
+
   # Rebuild Tailwind CSS with daisyui plugin
   rails tailwindcss:build
 
