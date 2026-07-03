@@ -259,7 +259,11 @@ BOMFIX
   # Phase: Devise + user table
   echo '--- Setting up Devise ---'
   rails generate devise:install --force
-  rails generate devise User role:integer name:string department:string employee_id:string --force 2>/dev/null || true
+  if ! ls db/migrate/*devise_create_users* >/dev/null 2>&1; then
+    rails generate devise User role:integer name:string department:string employee_id:string --force 2>/dev/null || true
+  else
+    echo 'Devise User migration already exists. Skipping.'
+  fi
 
   # Overwrite all models with proper associations, enums, validations, PaperTrail
   echo '--- Writing all models ---'
