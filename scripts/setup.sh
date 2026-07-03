@@ -435,6 +435,9 @@ ROUTES
   rails generate devise:views 2>/dev/null || true
   bash bootstrap/update_views.sh
 
+  # Rebuild Tailwind CSS with daisyui plugin
+  rails tailwindcss:build
+
   # Phase: seed
   echo '--- Seeding database ---'
   cat > db/seeds.rb << 'SEED'
