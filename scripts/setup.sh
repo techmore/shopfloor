@@ -422,6 +422,10 @@ ROUTES
   rails generate devise:views 2>/dev/null || true
   bash bootstrap/update_views.sh
 
+  # Phase: Document Management
+  echo '--- Setting up Document Management ---'
+  bash bootstrap/documents.sh
+
   # Rebuild Tailwind CSS with daisyui plugin
   rails tailwindcss:build
 
