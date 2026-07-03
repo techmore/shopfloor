@@ -18,7 +18,7 @@ class WeighStationPolicy < ApplicationPolicy
   def update?  = user.admin?
   def edit?    = update?
   def destroy? = user.admin?
-  def session? = user.operator? || user.admin?
+  def weigh_in? = user.operator? || user.admin?
 end
 RUBY
 
@@ -111,7 +111,7 @@ RUBY
 # ---- Controllers ----
 cat > app/controllers/weigh_stations_controller.rb << 'RUBY'
 class WeighStationsController < ApplicationController
-  before_action :set_weigh_station, only: %i[show edit update destroy session]
+  before_action :set_weigh_station, only: %i[show edit update destroy weigh_in]
   after_action :verify_authorized
 
   def index
@@ -154,9 +154,9 @@ class WeighStationsController < ApplicationController
     redirect_to weigh_stations_path, notice: "Weigh station deleted."
   end
 
-  def session
+  def weigh_in
     @weigh_session = @weigh_station.weigh_sessions.new
-    authorize @weigh_station, :session?
+    authorize @weigh_station, :weigh_in?
   end
 
   private
@@ -610,7 +610,7 @@ cat > app/views/weigh_stations/show.html.erb << 'ERB'
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-2xl font-bold"><%= @weigh_station.name %></h1>
   <div class="flex gap-2">
-    <% if policy(@weigh_station).session? %><%= link_to "New Session", session_weigh_station_path(@weigh_station), class: "btn btn-primary btn-sm" %><% end %>
+    <% if policy(@weigh_station).weigh_in? %><%= link_to "New Session", weigh_in_weigh_station_path(@weigh_station), class: "btn btn-primary btn-sm" %><% end %>
     <% if policy(@weigh_station).edit? %><%= link_to "Edit", edit_weigh_station_path(@weigh_station), class: "btn btn-outline btn-sm" %><% end %>
   </div>
 </div>
@@ -629,7 +629,7 @@ cat > app/views/weigh_stations/show.html.erb << 'ERB'
 </div>
 ERB
 
-cat > app/views/weigh_stations/session.html.erb << 'ERB'
+cat > app/views/weigh_stations/weigh_in.html.erb << 'ERB'
 <div class="max-w-lg mx-auto">
   <h1 class="text-2xl font-bold mb-2">Weigh Session</h1>
   <p class="text-base-content/60 mb-6"><%= @weigh_station.name %></p>
@@ -1041,7 +1041,7 @@ SHIPMENT_FORM='<%= form_with(model: @shipment, local: true, class: "space-y-4") 
   </div>
   <div class="form-control"><%= f.label :contents, class: "label" %><%= f.text_area :contents, rows: 3, class: "textarea textarea-bordered w-full" %></div>
   <div class="form-control"><%= f.label :nfc_tag_id, class: "label" %><%= f.collection_select :nfc_tag_id, NfcTag.order(:tag_uid), :id, :tag_uid, { include_blank: true }, class: "select select-bordered w-full" %></div>
-  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", shipment.persisted? ? shipment : shipments_path, class: "btn btn-ghost" %></div>
+  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", @shipment.persisted? ? @shipment : shipments_path, class: "btn btn-ghost" %></div>
 <% end %>'
 
 cat > app/views/shipments/new.html.erb << ERB

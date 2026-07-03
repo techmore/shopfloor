@@ -384,7 +384,7 @@ Rails.application.routes.draw do
 
   resources :weigh_stations do
     member do
-      get :session
+      get :weigh_in
     end
   end
   resources :weigh_sessions do

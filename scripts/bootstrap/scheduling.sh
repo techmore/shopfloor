@@ -524,7 +524,7 @@ WORKSTATION_FORM='<%= form_with(model: @work_station, local: true) do |f| %>
   <div class="form-control"><%= f.label :station_type, class: "label" %><%= f.select :station_type, WorkStation.station_types.keys.map { |r| [r.titleize, r] }, {}, class: "select select-bordered w-full" %></div>
   <div class="form-control"><%= f.label :department, class: "label" %><%= f.text_field :department, class: "input input-bordered w-full" %></div>
   <div class="form-control"><%= f.label :description, class: "label" %><%= f.text_area :description, rows: 3, class: "textarea textarea-bordered w-full" %></div>
-  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", work_station.persisted? ? work_station : work_stations_path, class: "btn btn-ghost" %></div>
+  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", @work_station.persisted? ? @work_station : work_stations_path, class: "btn btn-ghost" %></div>
 <% end %>'
 
 cat > app/views/work_stations/new.html.erb << ERB
@@ -546,7 +546,7 @@ SHIFT_FORM='<%= form_with(model: @shift, local: true) do |f| %>
     <div class="form-control"><%= f.label :start_time, class: "label" %><%= f.time_field :start_time, class: "input input-bordered w-full" %></div>
     <div class="form-control"><%= f.label :end_time, class: "label" %><%= f.time_field :end_time, class: "input input-bordered w-full" %></div>
   </div>
-  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", shift.persisted? ? shift : shifts_path, class: "btn btn-ghost" %></div>
+  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", @shift.persisted? ? @shift : shifts_path, class: "btn btn-ghost" %></div>
 <% end %>'
 
 cat > app/views/shifts/index.html.erb << 'ERB'
@@ -663,7 +663,7 @@ WORK_ORDER_FORM='<%= form_with(model: @work_order, local: true) do |f| %>
     <div class="form-control"><%= f.label :priority, class: "label" %><%= f.select :priority, WorkOrder.priorities.keys.map { |p| [p.titleize, p] }, {}, class: "select select-bordered w-full" %></div>
   </div>
   <div class="form-control"><%= f.label :notes, class: "label" %><%= f.text_area :notes, rows: 3, class: "textarea textarea-bordered w-full" %></div>
-  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", work_order.persisted? ? work_order : work_orders_path, class: "btn btn-ghost" %></div>
+  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", @work_order.persisted? ? @work_order : work_orders_path, class: "btn btn-ghost" %></div>
 <% end %>'
 
 cat > app/views/work_orders/new.html.erb << ERB
@@ -735,7 +735,7 @@ ASSIGNMENT_FORM='<%= form_with(model: @assignment, local: true) do |f| %>
     <div class="form-control"><%= f.label :planned_end, class: "label" %><%= f.datetime_field :planned_end, class: "input input-bordered w-full" %></div>
   </div>
   <div class="form-control"><%= f.label :notes, class: "label" %><%= f.text_area :notes, rows: 3, class: "textarea textarea-bordered w-full" %></div>
-  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", assignment.persisted? ? assignment : assignments_path, class: "btn btn-ghost" %></div>
+  <div class="flex gap-3 pt-2"><%= f.submit class: "btn btn-primary" %><%= link_to "Cancel", @assignment.persisted? ? @assignment : assignments_path, class: "btn btn-ghost" %></div>
 <% end %>'
 
 cat > app/views/assignments/new.html.erb << ERB
