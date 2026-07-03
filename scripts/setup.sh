@@ -258,8 +258,8 @@ BOMFIX
 
   # Phase: Devise + user table
   echo '--- Setting up Devise ---'
-  rails generate devise:install
-  rails generate devise User role:integer name:string department:string employee_id:string 2>/dev/null || true
+  rails generate devise:install --force
+  rails generate devise User role:integer name:string department:string employee_id:string --force 2>/dev/null || true
 
   # Overwrite User model with role enum
   echo '--- Writing User model ---'
