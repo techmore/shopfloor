@@ -435,6 +435,10 @@ ROUTES
   echo '--- Setting up Production Scheduling ---'
   bash bootstrap/scheduling.sh
 
+  # Phase: Weigh Stations + Inventory
+  echo '--- Setting up Weigh Stations & Inventory ---'
+  bash bootstrap/weigh_inventory.sh
+
   # Rebuild Tailwind CSS with daisyui plugin
   rails tailwindcss:build
 
