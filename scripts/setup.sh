@@ -232,13 +232,13 @@ GEMS
   # Fix self-referential FK migrations (parent_id columns referencing own table)
   echo '--- Fixing self-referential FK migrations ---'
   for f in db/migrate/*create_categories.rb; do
-    sed -i 's/foreign_key: true/foreign_key: {to_table: :categories}/' "$f"
+    sed -i 's/foreign_key: true/foreign_key: {to_table: :categories}/' \"\$f\"
   done
   for f in db/migrate/*create_stock_locations.rb; do
-    sed -i 's/foreign_key: true/foreign_key: {to_table: :stock_locations}/' "$f"
+    sed -i 's/foreign_key: true/foreign_key: {to_table: :stock_locations}/' \"\$f\"
   done
   for f in db/migrate/*create_bill_of_materials.rb; do
-    cat > "$f" << BOMFIX
+    cat > \"\$f\" << BOMFIX
 class CreateBillOfMaterials < ActiveRecord::Migration[8.1]
   def change
     create_table :bill_of_materials do |t|
