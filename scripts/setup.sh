@@ -476,8 +476,9 @@ SEED
   echo '--- Bootstrap phases complete ---'
 "
 
-# Save credentials to the mount for easy access from the host
-cat > "$MOUNT_POINT/credentials.txt" <<- CRED
+# Save credentials locally for easy access from the host
+CRED_FILE="$(dirname "$0")/../credentials.txt"
+cat > "$CRED_FILE" <<- CRED
 ===========================================
   Shopfloor Demo Credentials
 ===========================================
@@ -509,7 +510,7 @@ cat > "$MOUNT_POINT/credentials.txt" <<- CRED
   Getting Started: http://$VM_IP:3000/getting_started
 ===========================================
 CRED
-echo "  Credentials saved to: $MOUNT_POINT/credentials.txt"
+echo "  Credentials saved to: $CRED_FILE"
 
 # ---- Step 7: Show results ----
 echo ""
@@ -547,7 +548,7 @@ echo "    reviewer@shopfloor.local    (Reviewer)"
 echo "    approver@shopfloor.local    (Approver)"
 echo "    viewer@shopfloor.local      (Viewer)"
 echo ""
-echo "  Credentials also saved to: $PWD/credentials.txt"
+echo "  Credentials also saved to: $CRED_FILE"
 echo ""
 echo "  Stop the VM when done:"
 echo "    multipass stop $VM_NAME"
