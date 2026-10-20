@@ -1,8 +1,8 @@
 FactoryBot.define do
   factory :nfc_tag do
-    tag_uid { "MyString" }
+    sequence(:tag_uid) { |n| "04A2B3C4D5E#{n.to_s(16).rjust(3, '0').upcase}" }
     taggable { nil }
-    written_at { "2026-06-30 22:21:38" }
-    written_by_id { 1 }
+    written_by { nil }
+    written_at { nil }
   end
 end

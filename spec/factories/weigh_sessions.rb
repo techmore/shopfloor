@@ -1,15 +1,15 @@
 FactoryBot.define do
   factory :weigh_session do
-    work_order { nil }
+    work_order
     assignment { nil }
-    part { nil }
-    worker_id { 1 }
-    weigh_station { nil }
-    weight_value { "9.99" }
-    unit { "MyString" }
-    nfc_tag { "MyString" }
+    part { work_order.part }
+    worker factory: %i[user operator]
+    weigh_station
+    weight_value { 12.5 }
+    unit { "kg" }
+    nfc_tag { nil }
     printed_label { false }
-    recorded_at { "2026-06-30 22:21:45" }
-    synced_at { "2026-06-30 22:21:45" }
+    recorded_at { Time.current }
+    synced_at { nil }
   end
 end
