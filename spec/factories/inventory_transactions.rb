@@ -1,10 +1,10 @@
 FactoryBot.define do
   factory :inventory_transaction do
-    part { nil }
-    transaction_type { 1 }
-    quantity { 1 }
+    part
+    transaction_type { :receipt }
+    quantity { 10 }
     reference { nil }
-    user_id { 1 }
-    notes { "MyText" }
+    user
+    notes { nil }
   end
 end
