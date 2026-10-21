@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,7 +22,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
     t.integer "document_version"
     t.datetime "signed_at"
     t.datetime "updated_at", null: false
+    t.bigint "document_id"
     t.index ["approver_id"], name: "index_approvals_on_approver_id"
+    t.index ["document_id"], name: "index_approvals_on_document_id"
   end
 
   create_table "assignments", force: :cascade do |t|
@@ -110,8 +112,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
     t.text "notes"
     t.bigint "part_id", null: false
     t.integer "quantity"
-    t.bigint "reference_id", null: false
-    t.string "reference_type", null: false
+    t.bigint "reference_id"
+    t.string "reference_type"
     t.integer "transaction_type"
     t.datetime "updated_at", null: false
     t.integer "user_id"
@@ -123,8 +125,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
   create_table "nfc_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "tag_uid"
-    t.bigint "taggable_id", null: false
-    t.string "taggable_type", null: false
+    t.bigint "taggable_id"
+    t.string "taggable_type"
     t.datetime "updated_at", null: false
     t.datetime "written_at"
     t.integer "written_by_id"
@@ -181,7 +183,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
     t.string "destination"
     t.decimal "gross_weight"
     t.decimal "net_weight"
-    t.bigint "nfc_tag_id", null: false
+    t.bigint "nfc_tag_id"
     t.string "shipment_number"
     t.integer "status"
     t.datetime "updated_at", null: false
@@ -232,7 +234,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
   end
 
   create_table "weigh_sessions", force: :cascade do |t|
-    t.bigint "assignment_id", null: false
+    t.bigint "assignment_id"
     t.datetime "created_at", null: false
     t.string "nfc_tag"
     t.bigint "part_id", null: false
@@ -290,6 +292,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_022202) do
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "approvals", "documents"
   add_foreign_key "approvals", "users", column: "approver_id"
   add_foreign_key "assignments", "shifts"
   add_foreign_key "assignments", "users", column: "worker_id"

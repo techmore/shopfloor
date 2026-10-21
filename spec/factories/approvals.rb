@@ -1,9 +1,10 @@
 FactoryBot.define do
   factory :approval do
-    approver_id { 1 }
+    document
+    approver factory: %i[user approver]
+    decision { :pending }
+    comment { "Looks good" }
     document_version { 1 }
-    decision { 1 }
-    comment { "MyText" }
-    signed_at { "2026-06-30 22:21:42" }
+    signed_at { nil }
   end
 end
