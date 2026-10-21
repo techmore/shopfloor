@@ -65,3 +65,35 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: shopfloor
+          POSTGRES_PASSWORD: shopfloor
+          POSTGRES_DB: shopfloor_test
+        ports:
+          - 5432:5432
+        options: --health-cmd="pg_isready -U shopfloor" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://shopfloor:shopfloor@localhost:5432/shopfloor_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Load database schema
+        run: bin/rails db:schema:load
+
+      - name: Run specs
+        run: bundle exec rspec --format progress

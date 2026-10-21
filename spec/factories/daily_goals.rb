@@ -1,10 +1,10 @@
 FactoryBot.define do
   factory :daily_goal do
-    date { "2026-06-30" }
-    work_station { nil }
-    worker_id { 1 }
-    target_quantity { 1 }
-    unit { "MyString" }
-    achieved_quantity { 1 }
+    work_station
+    worker factory: %i[user operator]
+    date { Date.current }
+    target_quantity { 100 }
+    achieved_quantity { 0 }
+    unit { "units" }
   end
 end

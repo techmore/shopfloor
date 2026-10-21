@@ -1,11 +1,11 @@
 FactoryBot.define do
   factory :shipment do
-    shipment_number { "MyString" }
+    sequence(:shipment_number) { |n| "SHP-#{n.to_s.rjust(5, '0')}" }
     nfc_tag { nil }
-    contents { "MyText" }
-    gross_weight { "9.99" }
-    net_weight { "9.99" }
-    destination { "MyString" }
-    status { 1 }
+    contents { "12 x PN-00001" }
+    gross_weight { 25.5 }
+    net_weight { 24.0 }
+    destination { "Customer A" }
+    status { :created }
   end
 end
